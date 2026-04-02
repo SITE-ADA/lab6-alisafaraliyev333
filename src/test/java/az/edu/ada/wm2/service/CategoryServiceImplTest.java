@@ -1,40 +1,79 @@
-package az.edu.ada.wm2.service;
+package az.edu.ada.wm2.lab6.service;
 
 import az.edu.ada.wm2.lab6.model.Category;
 import az.edu.ada.wm2.lab6.model.Product;
 import az.edu.ada.wm2.lab6.model.dto.CategoryRequestDto;
 import az.edu.ada.wm2.lab6.model.dto.CategoryResponseDto;
 import az.edu.ada.wm2.lab6.model.dto.ProductResponseDto;
+import az.edu.ada.wm2.lab6.model.mapper.CategoryMapper;
 import az.edu.ada.wm2.lab6.model.mapper.ProductMapper;
 import az.edu.ada.wm2.lab6.repository.CategoryRepository;
 import az.edu.ada.wm2.lab6.repository.ProductRepository;
-
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+@Service
+public class CategoryServiceImpl implements CategoryService {
 
-@ExtendWith(MockitoExtension.class)
-class CategoryServiceImplTest {
+    private final CategoryRepository categoryRepository;
+    private final ProductRepository productRepository;
+    private final ProductMapper productMapper;
 
-    @Mock
-    private CategoryRepository categoryRepository;
+    public CategoryServiceImpl(CategoryRepository categoryRepository,
+                               ProductRepository productRepository,
+                               ProductMapper productMapper) {
+        this.categoryRepository = categoryRepository;
+        this.productRepository = productRepository;
+        this.productMapper = productMapper;
+    }
 
-    @Mock
-    private ProductRepository productRepository;
+    @Override
+    public CategoryResponseDto create(CategoryRequestDto dto) {
+        Category category = CategoryMapper.toEntity(dto);
+        Category saved = categoryRepository.save(category);
+        return CategoryMapper.toResponseDto(saved);
+    }
 
-    @Mock
-    private ProductMapper productMapper;
+    @Override
+    public List<CategoryResponseDto> getAll() {
+        return categoryRepository.findAll()
+                .stream()
+                .map(CategoryMapper::toResponseDto)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public CategoryResponseDto addProduct(UUID categoryId, UUID productId) {
+        Category category = categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new RuntimeException("Category not found with id: " + categoryId));
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
+
+        // Link product to category (Product is owner)
+        List<Category> productCategories = product.getCategories();
+        if (!productCategories.contains(category)) {
+            productCategories.add(category);
+        }
+
+        productRepository.save(product);
+
+        return CategoryMapper.toResponseDto(category);
+    }
+
+    @Override
+    public List<ProductResponseDto> getProducts(UUID categoryId) {
+        Category category = categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new RuntimeException("Category not found with id: " + categoryId));
+
+        return category.getProducts()
+                .stream()
+                .map(productMapper::toResponseDto)
+                .collect(Collectors.toList());
+    }
+}    private ProductMapper productMapper;
 
     @InjectMocks
     private CategoryServiceImpl categoryService;
@@ -102,7 +141,7 @@ class CategoryServiceImplTest {
         assertEquals(1, result.size());
     }
 
-    //OPTIONAL
+    
     @Test
     void addProduct_shouldThrow_whenCategoryNotFound() {
         when(categoryRepository.findById(any())).thenReturn(Optional.empty());
