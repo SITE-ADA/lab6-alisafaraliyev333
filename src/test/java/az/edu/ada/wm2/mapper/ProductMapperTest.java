@@ -1,45 +1,33 @@
-package az.edu.ada.wm2.mapper;
+package az.edu.ada.wm2.lab6.model.mapper;
 
-import az.edu.ada.wm2.lab6.model.Category;
 import az.edu.ada.wm2.lab6.model.Product;
-import az.edu.ada.wm2.lab6.model.dto.ProductResponseDto;
-import az.edu.ada.wm2.lab6.model.mapper.ProductMapper;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import az.edu.ada.wm2.lab6.model.Category;
+import az.edu.ada.wm2.lab6.dto.ProductRequestDto;
+import az.edu.ada.wm2.lab6.dto.ProductResponseDto;
+
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
 
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.*;
+@Mapper(componentModel = "spring")
+public interface ProductMapper {
 
-@SpringBootTest
-class ProductMapperTest {
+    // Entity → Response DTO
+    @Mapping(target = "categoryNames", source = "categories")
+    ProductResponseDto toResponseDto(Product product);
 
-    @Autowired
-    private ProductMapper productMapper;
+    // Request DTO → Entity
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "categories", ignore = true)
+    Product toEntity(ProductRequestDto dto);
 
-    @Test
-    void shouldMapCategoriesToNames() {
-        Category category = new Category();
-        category.setName("Food");
+    // Custom mapping: List<Category> → List<String>
+    default List<String> mapCategoriesToNames(List<Category> categories) {
+        if (categories == null) return List.of();
 
-        Product product = Product.builder()
-                .categories(List.of(category))
-                .build();
-
-        ProductResponseDto dto = productMapper.toResponseDto(product);
-
-        assertEquals
-                ("Food", dto.getCategoryNames().getFirst());
-    }
-
-    //OPTIONAL
-    @Test
-    void shouldHandleEmptyCategories() {
-        Product product = new Product();
-
-        ProductResponseDto dto = productMapper.toResponseDto(product);
-
-        assertNotNull(dto.getCategoryNames());
+        return categories.stream()
+                .map(Category::getName)
+                .toList();
     }
 }
